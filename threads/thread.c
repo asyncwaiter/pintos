@@ -226,9 +226,7 @@ thread_create (const char *name, int priority,
 	if (strcmp(name, "idle") != 0)
 	{
 // #ifdef USERPROG
-		lock_acquire(&t->child_lock);
 		list_push_back(&thread_current()->children, &t->child_elem);
-		lock_release(&t->child_lock);
 // #endif
 		t->recent_cpu = thread_current()->recent_cpu;
 	}
@@ -241,9 +239,6 @@ thread_create (const char *name, int priority,
 	t->fd_table[0] = 1; // dummy values to distinguish fd 0 and 1 from NULL
 	t->fd_table[1] = 2;
 	t->next_fd = 2;	// 0: stdin, 1: stdout
-
-	t->stdin_count = 1;
-    t->stdout_count = 1;
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -505,7 +500,6 @@ init_thread (struct thread *t, const char *name, int priority) {
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
-	lock_init(&t->child_lock);
 
 	list_init(&t->children);
 	t->process_status = 0;
@@ -837,24 +831,11 @@ void mlfqs_incr(){
 struct thread *get_thread_by_tid(tid_t tid) {
 	struct thread *parent = thread_current();
 
-	lock_acquire(&parent->child_lock);
 	for (struct list_elem *e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)) {
         struct thread *child = list_entry(e, struct thread, child_elem);
         if (child->tid == tid) {
-
-			lock_release(&parent->child_lock);
-
             return child;  // 자식 프로세스를 찾음
         }
     }
-	lock_release(&parent->child_lock);
 	return NULL;
-    // struct list_elem *e;
-    // for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
-    //     struct thread *t = list_entry(e, struct thread, all_elem);
-    //     if (t->tid == tid) {
-    //         return t;
-    //     }
-    // }
-    // return NULL;
 }

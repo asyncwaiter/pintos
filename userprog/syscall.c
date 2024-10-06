@@ -253,9 +253,6 @@ int read (int fd, void *buffer, unsigned size){
     struct file *file = get_file_by_descriptor(fd);
 	
     if (file == 1) {                // 0(stdin) -> keyboard로 직접 입력
-        if (curr->stdin_count == 0) /** #Project 2: Extend File Descriptor - stdin이 닫혀있을 경우 */
-            // lock_release(&syscall_lock);
-			return -1;
 
         int i = 0;  // 쓰레기 값 return 방지
         char c;
@@ -293,8 +290,6 @@ int write (int fd, const void *buffer, unsigned size){
 	}
 
 	if (fd == 1){		// Standard Output
-		if (curr->stdout_count <= 0) /** #Project 2: Extend File Descriptor - stdout이 닫혀있을 경우 */
-            return -1;
 		putbuf(buffer, size);
 		return size;
 	}
@@ -349,18 +344,6 @@ void close (int fd){
 	if (curr->next_fd == FD_MAX) {
 		curr->next_fd = fd;
 	}
-
-	if (file == 1) {
-        if (curr->stdin_count != 0)
-            curr->stdin_count--;
-        return;
-    }
-
-    if (file == 2) {
-        if (curr->stdout_count != 0)
-            curr->stdout_count--;
-        return;
-    }
 	file_close(file);
 }
 
