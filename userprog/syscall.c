@@ -12,7 +12,6 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/palloc.h"
-
 #include "threads/synch.h"
 #include <string.h>
 
@@ -44,6 +43,7 @@ void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 void user_memory_valid(void *r);
 struct file *get_file_by_descriptor(int fd);
+struct lock syscall_lock;
 
 /* System call.
  *
@@ -58,7 +58,6 @@ struct file *get_file_by_descriptor(int fd);
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
 
-struct lock syscall_lock;
 void
 syscall_init (void) {
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
@@ -163,11 +162,9 @@ void halt (void){
 }
 
 void exit (int status){
-	struct thread *t = thread_current();
-	t->process_status = status;
-
-	printf("%s: exit(%d)\n", t->name, status);
-
+	struct thread *curr = thread_current();
+	curr->process_status = status;
+	printf("%s: exit(%d)\n", curr->name, status);
 	thread_exit();
 }
 
@@ -177,12 +174,12 @@ pid_t fork (const char *thread_name){
 }
 
 int exec (const char *cmd_line){
-	char *c = palloc_get_page(PAL_ZERO);
-	if (c == NULL) {
+	char *copy = palloc_get_page(PAL_ZERO);
+	if (copy == NULL) {
 		exit(-1);
 	}
-	strlcpy(c, cmd_line, strlen(cmd_line) + 1);
-	if (process_exec (c) < 0) {
+	strlcpy(copy, cmd_line, strlen(cmd_line) + 1);
+	if (process_exec (copy) < 0) {
 		exit(-1);
 	}
 	
@@ -194,8 +191,7 @@ int wait (pid_t pid){
 }
 
 bool create (const char *file, unsigned initial_size){
-	bool create_return = filesys_create(file, initial_size);
-	return create_return;
+	return filesys_create(file, initial_size);
 }
 
 bool remove (const char *file){
@@ -210,7 +206,6 @@ int open (const char *file){
 	}
 
 	struct file *openfile = filesys_open(file);
-
 	if((curr->fd_table[curr->next_fd] = openfile) == NULL) {
 		return -1;
 	}
@@ -241,12 +236,12 @@ int filesize (int fd){
 }
 
 int read (int fd, void *buffer, unsigned size){
-    struct file *file = get_file_by_descriptor(fd);
-    if (file == 1) {                // 0(stdin) -> keyboard로 직접 입력
-        int i = 0;  // 쓰레기 값 return 방지
+    if (fd == STD_IN) {                // keyboard로 직접 입력
+        int i;  // 쓰레기 값 return 방지
         char c;
         unsigned char *buf = buffer;
-        for (; i < size; i++) {
+
+        for (i = 0; i < size; i++) {
             c = input_getc();
             *buf++ = c;
             if (c == '\0')
@@ -254,12 +249,12 @@ int read (int fd, void *buffer, unsigned size){
         }
         return i;
     }
-
+	
+    struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL || file == STD_OUT || file == STD_ERR)  // 빈 파일, stdout, stderr를 읽으려고 할 경우
 		return -1;
 
     off_t bytes = -1;
-
     lock_acquire(&syscall_lock);
     bytes = file_read(file, buffer, size);
     lock_release(&syscall_lock);
@@ -341,9 +336,10 @@ void user_memory_valid(void *r){
 
 struct file *get_file_by_descriptor(int fd)
 {
-	if (fd < 3 || fd > 128) return NULL;
-	
-	struct thread *curr = thread_current();
+	if (fd < 3 || fd > FD_MAX)
+		return NULL;
 
-	return curr->fd_table[fd];
+	struct thread *t = thread_current();
+
+	return t->fd_table[fd];
 }

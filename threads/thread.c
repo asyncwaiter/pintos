@@ -12,6 +12,7 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "threads/fixed_point.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -231,16 +232,18 @@ thread_create (const char *name, int priority,
 		t->recent_cpu = thread_current()->recent_cpu;
 	}
 
-	t->fd_table = palloc_get_page(PAL_ZERO);
+	/*------- PROJECT 2 - USER PROGRAMS -------*/
+
+	t->fd_table = palloc_get_page(PAL_ZERO);	// PAL_ZERO : 페이지 할당 받고 0으로 초기화
 	if (t->fd_table == NULL)
 		return TID_ERROR;
 	
-	/*------- PROJECT 2 : USER PROGRAMS -------*/
-	t->fd_table[0] = STD_IN; // dummy values to distinguish fd 0 and 1 from NULL
-	t->fd_table[1] = STD_OUT;
-	t->fd_table[2] = STD_ERR;
-	t->next_fd = 3;	// 0: stdin, 1: stdout
-
+	t->fd_table[0] = STD_IN;
+    t->fd_table[1] = STD_OUT;
+    t->fd_table[2] = STD_ERR;
+	t->next_fd = 3;
+	/*-----------------------------------------*/
+	
 	/* Add to run queue. */
 	thread_unblock (t);
 	check_priority();
@@ -497,15 +500,12 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->recent_cpu = 0;
 
 // #ifdef USERPROG
-	// 0, 1 더미데이터
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->free_sema, 0);
-
 	list_init(&t->children);
-	t->process_status = 0;
-#ifdef USERPROG
-#endif
+	t->process_status = PROCESS_NORM;
+// #endif
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
