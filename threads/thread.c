@@ -236,9 +236,10 @@ thread_create (const char *name, int priority,
 		return TID_ERROR;
 	
 	/*------- PROJECT 2 : USER PROGRAMS -------*/
-	t->fd_table[0] = 1; // dummy values to distinguish fd 0 and 1 from NULL
-	t->fd_table[1] = 2;
-	t->next_fd = 2;	// 0: stdin, 1: stdout
+	t->fd_table[0] = STD_IN; // dummy values to distinguish fd 0 and 1 from NULL
+	t->fd_table[1] = STD_OUT;
+	t->fd_table[2] = STD_ERR;
+	t->next_fd = 3;	// 0: stdin, 1: stdout
 
 	/* Add to run queue. */
 	thread_unblock (t);

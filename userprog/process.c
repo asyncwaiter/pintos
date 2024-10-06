@@ -207,7 +207,7 @@ __do_fork (void *aux) {
 	// }
 
 	// mytodo : fd_table 복제
-	for (int i=2; i<FD_MAX; i++) {
+	for (int i=3; i<FD_MAX; i++) {
 		if (parent->fd_table[i] != NULL){
 			current->fd_table[i] = file_duplicate(parent->fd_table[i]);
 		}
