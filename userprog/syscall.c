@@ -348,8 +348,6 @@ void close (int fd){
 		return;
 	}
 
-	if (fd < 0 || fd >= FD_MAX)
-        return;
     curr->fd_table[fd] = NULL;
 
 	if (curr->next_fd == FD_MAX) {
@@ -360,6 +358,7 @@ void close (int fd){
         if (curr->stdin_count != 0)
             curr->stdin_count--;
         return;
+
     }else if (file == 2) {
         if (curr->stdout_count != 0)
             curr->stdout_count--;

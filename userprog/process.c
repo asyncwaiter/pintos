@@ -436,15 +436,24 @@ load (const char *file_name, struct intr_frame *if_) {
 	bool success = false;
 	int i;
 	
-	char *args[32];
+	// char *args[32];
+	char **args; 
 	int argc = 0;
 	char *token;
     char *save_ptr;
 	// char fn_copy[64];
 	char *fn_copy;
 	
+	// args를 palloc_get_page로 할당
+	args = palloc_get_page(PAL_ZERO);
+	if (args == NULL) {
+		goto done;
+	}
+
+
 	fn_copy = palloc_get_page(PAL_ZERO);
 	if (fn_copy == NULL) {
+		palloc_free_page(args);
 		goto done;
 	}
 
@@ -580,9 +589,15 @@ load (const char *file_name, struct intr_frame *if_) {
 done:
 	/* We arrive here whether the load is successful or not. */
 	// file_close (file);		// minjae's 경우 없앰
+
 	if (fn_copy != NULL) {
         palloc_free_page(fn_copy);
     }
+
+	if (args != NULL) {
+		palloc_free_page(args);  // args 페이지도 해제
+	}
+
 	return success;
 }
 
