@@ -99,11 +99,9 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
 	struct thread *parent = thread_current();
 
-	// struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame)); //(oom_update)
-	// memcpy(&parent->parent_tf, f, sizeof(struct intr_frame));
 	memcpy (&parent->parent_tf, if_, sizeof(struct intr_frame));
 
-	tid_t child_tid = thread_create(name, PRI_DEFAULT, __do_fork, (void *)parent);
+	tid_t child_tid = thread_create(name, PRI_DEFAULT, __do_fork, parent);
 	if (child_tid == TID_ERROR) {
 		return TID_ERROR;
 	}
@@ -116,7 +114,7 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	sema_down(&child->fork_sema);
 
 	if (child->process_status == PROCESS_ERR) {
-		sema_up(&child->free_sema); //이거 필요한지 확실하지 않음 (oom_update)
+		sema_up(&child->free_sema);
 		return TID_ERROR;
 	}
 
@@ -178,7 +176,6 @@ __do_fork (void *aux) {
 	struct intr_frame if_;
 	struct thread *parent = (struct thread *) aux;
 	struct thread *curr = thread_current ();
-	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 	struct intr_frame *parent_if = &parent->parent_tf;
 	bool succ = true;
 
@@ -206,32 +203,17 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
-	// // if (parent->next_fd == FD_MAX) {
-	// // 	goto error;
-	// // }
 
-	// // mytodo : fd_table 복제
-	// for (int i=3; i<FD_MAX; i++) {
-	// 	if (parent->fd_table[i] != NULL){
-	// 		current->fd_table[i] = file_duplicate(parent->fd_table[i]);
-	// 	}
-	// }
-	// current->next_fd = parent->next_fd;
-	// sema_up(&current->fork_sema);
+	if (parent->next_fd > FD_MAX){
+		goto error;
+	}
 
-	if (parent->next_fd > FD_MAX)
-    goto error;
-
-  	for (int i = 3; i <= FD_MAX; i++) { //0부터 시작하게 바꿈, 중요한지 모름 (oom_update)
+  	for (int i = 3; i <= FD_MAX; i++) {
     	struct file *f = parent->fd_table[i];
 		if (f == NULL){
-		continue;
+			continue;
 		}
-
-		if (i > 2){
-			f = file_duplicate(f);
-		}
-
+		f = file_duplicate(f);
 		curr->fd_table[i] = f;
   	}
  	curr->next_fd = parent->next_fd;
@@ -243,8 +225,8 @@ __do_fork (void *aux) {
 		do_iret (&if_);
 error:
 	sema_up(&curr->fork_sema);
-	// curr->process_status = TID_ERROR;
-	exit (-1); //exit(-1)으로 처리해야함 (oom_update)
+	curr->process_status = PROCESS_ERR;
+	thread_exit();
 }
 
 /* Switch the current execution context to the f_name.
@@ -300,8 +282,8 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 	
-	struct thread *child = NULL;                 // 자식 스레드를 저장할 변수
-	if ((child = get_thread_by_tid(child_tid)) == NULL || child < 0) { //(oom_update)
+	struct thread *child = NULL;
+	if ((child = get_thread_by_tid(child_tid)) == NULL || child < 0) {
 		return -1;
 	}
 	sema_down(&child->wait_sema);
@@ -322,15 +304,16 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	for (int i = 3; i <= FD_MAX; i++) { //(oom_update)
+	for (int i = 3; i <= FD_MAX; i++) {
         close(i);
     }
+	
 	palloc_free_multiple(curr->fd_table, FD_PAGES);
-	file_close(curr->running); //minjae's
+	file_close(curr->running);
     process_cleanup();
 
-    sema_up(&curr->wait_sema); // 끝나고 기다리는 부모한테 세마포 넘겨줌
-    sema_down(&curr->free_sema); // 부모가 자식 free하고 세마포 넘길 때까지 기다림
+    sema_up(&curr->wait_sema);
+    sema_down(&curr->free_sema); 
 }
 
 /* Free the current process's resources. */

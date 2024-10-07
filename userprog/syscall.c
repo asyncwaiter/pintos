@@ -211,13 +211,13 @@ int open (const char *file) {   //(oom_update)
   struct thread *curr = thread_current();
   struct file **fdt = curr->fd_table;
 
-  while (curr->next_fd < FD_MAX && fdt[curr->next_fd])
+  while (curr->next_fd < FD_MAX && fdt[curr->next_fd]){
     curr->next_fd++;
-
+  }
   if (curr->next_fd >= FD_MAX) {
     file_close (f);
 	lock_release(&syscall_lock);
-	    return -1;
+	return -1;
   }
   
   fdt[curr->next_fd] = f;
