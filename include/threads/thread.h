@@ -5,10 +5,12 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
 
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status {
@@ -85,6 +87,15 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
+#define FD_PAGES 2 //page는 1,2,3 다 상관 없음 (oom_update)
+#define FD_MAX 128
+#define STD_IN 0
+#define STD_OUT 1
+#define STD_ERR 2
+#define PROCESS_NORM 0
+#define PROCESS_ERR -1
+struct thread *get_thread_by_tid(tid_t tid);
+
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
@@ -104,10 +115,22 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
-#ifdef USERPROG
+// #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
-#endif
+	struct file **fd_table;
+	int next_fd;
+
+	struct semaphore fork_sema;
+	struct semaphore wait_sema;
+	struct semaphore free_sema;
+
+	struct list children;
+	struct list_elem child_elem;
+	int process_status;
+	
+	struct file *running;		// minjae's
+// #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
@@ -115,6 +138,7 @@ struct thread {
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
+	struct intr_frame parent_tf;
 	unsigned magic;                     /* Detects stack overflow. */
 };
 
