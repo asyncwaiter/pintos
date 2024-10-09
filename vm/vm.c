@@ -37,6 +37,10 @@ static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
 
+/* 이뚜띤 선언 */
+unsigned vm_hash_func(const struct hash_elem *e, void *aux UNUSED);
+bool vm_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
  * `vm_alloc_page`. */
@@ -69,7 +73,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	return page;
 }
 
-/* Insert PAGE into spt with validation. */
+/* Insert PAGE into spt with validation. 👻 */
 bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
@@ -111,7 +115,7 @@ vm_evict_frame (void) {
 static struct frame *
 vm_get_frame (void) {
 	struct frame *frame = NULL;
-	/* TODO: Fill this function. */
+	/* TODO: Fill this function. 👻 */
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
@@ -128,7 +132,9 @@ static bool
 vm_handle_wp (struct page *page UNUSED) {
 }
 
-/* Return true on success */
+/* Return true on success
+ * page fault가 나면 영역을 찾아야함
+ */
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
@@ -148,7 +154,7 @@ vm_dealloc_page (struct page *page) {
 	free (page);
 }
 
-/* Claim the page that allocate on VA. */
+/* Claim the page that allocate on VA. 👻 */
 bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
@@ -157,7 +163,7 @@ vm_claim_page (void *va UNUSED) {
 	return vm_do_claim_page (page);
 }
 
-/* Claim the PAGE and set up the mmu. */
+/* Claim the PAGE and set up the mmu. 👻 */
 static bool
 vm_do_claim_page (struct page *page) {
 	struct frame *frame = vm_get_frame ();
@@ -171,20 +177,37 @@ vm_do_claim_page (struct page *page) {
 	return swap_in (page, frame->kva);
 }
 
-/* Initialize new supplemental page table */
+/* Initialize new supplemental page table 👻*/
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	bool initialized = hash_init(&spt->vm_page_map, vm_hash_func, vm_hash_less, NULL);
+	if (initialized){
+		// 성실처리 지금은 뭘로하는게 좋을지 모르겠음
+		// 아마 밑에 실패시에 goto error나 exit을 해줘야하지 않을까 싶음
+	}
 }
 
-/* Copy supplemental page table from src to dst */
+/* Copy supplemental page table from src to dst 👻*/
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
 }
 
-/* Free the resource hold by the supplemental page table */
+/* Free the resource hold by the supplemental page table 👻*/
 void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+}
+
+
+unsigned vm_hash_func(const struct hash_elem *e, void *aux UNUSED) {
+    const struct vm_entry *v = hash_entry(e, struct vm_entry, hash_elem);
+    return hash_bytes(v->vaddr, strlen(v->vaddr));
+}
+
+bool vm_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
+    const struct vm_entry *v_a = hash_entry(a, struct vm_entry, hash_elem);
+    const struct vm_entry *v_b = hash_entry(b, struct vm_entry, hash_elem);
+    return strcmp(v_a->vaddr, v_b->vaddr) < 0;
 }
