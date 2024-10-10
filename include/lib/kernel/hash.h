@@ -98,3 +98,4 @@ uint64_t hash_string (const char *);
 uint64_t hash_int (int);
 
 #endif /* lib/kernel/hash.h */
+
