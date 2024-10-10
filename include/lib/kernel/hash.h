@@ -54,22 +54,23 @@ typedef bool hash_less_func (const struct hash_elem *a,
  * data AUX. */
 typedef void hash_action_func (struct hash_elem *e, void *aux);
 
-/* Hash table. */
+/* 해시 테이블. */
 struct hash {
-	size_t elem_cnt;            /* Number of elements in table. */
-	size_t bucket_cnt;          /* Number of buckets, a power of 2. */
-	struct list *buckets;       /* Array of `bucket_cnt' lists. */
-	hash_hash_func *hash;       /* Hash function. */
-	hash_less_func *less;       /* Comparison function. */
-	void *aux;                  /* Auxiliary data for `hash' and `less'. */
+	size_t elem_cnt;            /* 테이블에 있는 요소의 개수. */
+	size_t bucket_cnt;          /* 버킷의 개수, 2의 제곱수. */
+	struct list *buckets;       /* `bucket_cnt' 개의 리스트 배열. */
+	hash_hash_func *hash;       /* 해시 함수. */
+	hash_less_func *less;       /* 비교 함수. */
+	void *aux;                  /* `hash'와 `less'에 사용될 보조 데이터. */
 };
 
-/* A hash table iterator. */
+/* 해시 테이블 순회자를 위한 구조체. */
 struct hash_iterator {
-	struct hash *hash;          /* The hash table. */
-	struct list *bucket;        /* Current bucket. */
-	struct hash_elem *elem;     /* Current hash element in current bucket. */
+	struct hash *hash;          /* 해시 테이블. */
+	struct list *bucket;        /* 현재 버킷. */
+	struct hash_elem *elem;     /* 현재 버킷에서의 해시 요소. */
 };
+
 
 /* Basic life cycle. */
 bool hash_init (struct hash *, hash_hash_func *, hash_less_func *, void *aux);

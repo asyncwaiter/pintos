@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "include/vm/vm.h"
 
 #ifdef VM
 #include "vm/vm.h"
@@ -140,6 +141,8 @@ struct thread {
 	struct intr_frame tf;               /* Information for switching */
 	struct intr_frame syscall_tf;
 	unsigned magic;                     /* Detects stack overflow. */
+
+	struct supplemental_page_table spt;  	/* vm.h include해주고 추가함. 스레드가 가진 가상페이지들을 관리할 수 있는 해시테이블*/
 };
 
 struct sleeping_thread {

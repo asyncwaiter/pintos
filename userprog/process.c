@@ -80,7 +80,7 @@ static void
 initd (void *f_name) {
 	// printf("initd\n");
 #ifdef VM
-	supplemental_page_table_init (&thread_current ()->spt);
+	supplemental_page_table_init (&thread_current ()->spt); // 발견
 #endif
 	// printf("initd1\n");
 	process_init ();
@@ -191,7 +191,7 @@ __do_fork (void *aux) {
 
 	process_activate (curr);
 #ifdef VM
-	supplemental_page_table_init (&current->spt);
+	supplemental_page_table_init (&current->spt); 	// 발견
 	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
 		goto error;
 #else

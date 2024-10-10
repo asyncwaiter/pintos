@@ -44,6 +44,7 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+	vm_dealloc_page(page); // 넣을지 말지 고민중
 }
 
 /* Do the mmap */

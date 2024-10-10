@@ -64,8 +64,10 @@ err:
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
-	/* TODO: Fill this function. */
-
+	struct hash_elem *find_elem = hash_find(&spt->spt_hash, &spt->elem);
+	if (find_elem != NULL) {
+		struct spt_entry *page = hash_entry(e, struct spt_entry, va);
+	}
 	return page;
 }
 
@@ -74,7 +76,11 @@ bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
-	/* TODO: Fill this function. */
+
+    struct spt_entry *entry = malloc(sizeof(struct spt_entry));
+    entry->user_vaddr = page->va;
+
+    hash_insert(&spt->spt_hash, &entry->elem);
 
 	return succ;
 }
@@ -144,7 +150,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
  * DO NOT MODIFY THIS FUNCTION. */
 void
 vm_dealloc_page (struct page *page) {
-	destroy (page);
+	destroy (page);  /*컴파일러가 페이지 타입에 따라 적절한 파괴 함수를 호출*/
 	free (page);
 }
 
@@ -174,6 +180,8 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	struct hash *spt_hash = &spt->spt_hash;
+	hash_init(&spt_hash, &spt_hash->hash , &spt_hash->less, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
