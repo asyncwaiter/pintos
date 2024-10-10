@@ -109,7 +109,9 @@ kill (struct intr_frame *f) {
 
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
-   also require modifying this code.
+   also require modifying this code.  👻 구현필요
+   메뉴얼에 상세 단계 나와있음, https://yjohdev.notion.site/PROJECT-3-VIRTUAL-MEMORY-d16fc8d04f4d4829b7e25691a235901c
+
 
    At entry, the address that faulted is in CR2 (Control Register
    2) and information about the fault, formatted as described in

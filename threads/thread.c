@@ -467,7 +467,7 @@ kernel_thread (thread_func *function, void *aux) {
 	function (aux);       /* Execute the thread function. */
 	thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+ 
 
 /* Does basic initialization of T as a blocked thread named
    NAME. */
