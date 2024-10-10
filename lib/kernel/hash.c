@@ -84,22 +84,29 @@ hash_destroy (struct hash *h, hash_action_func *destructor) {
 	free (h->buckets);
 }
 
-/* Inserts NEW into hash table H and returns a null pointer, if
-   no equal element is already in the table.
-   If an equal element is already in the table, returns it
-   without inserting NEW. */
+/* 해시 테이블 H에 NEW 요소를 삽입하고, 
+   이미 테이블에 동일한 요소가 없는 경우 NULL 포인터를 반환합니다.
+   만약 동일한 요소가 이미 테이블에 존재하는 경우, 
+   NEW을 삽입하지 않고 기존의 요소를 반환합니다. */
 struct hash_elem *
-hash_insert (struct hash *h, struct hash_elem *new) {
-	struct list *bucket = find_bucket (h, new);
-	struct hash_elem *old = find_elem (h, bucket, new);
+hash_insert(struct hash *h, struct hash_elem *new) {
+    // NEW 요소가 삽입될 버킷을 찾습니다.
+    struct list *bucket = find_bucket(h, new);
+    
+    // 해당 버킷에서 NEW 요소와 동일한 요소가 이미 있는지 확인합니다.
+    struct hash_elem *old = find_elem(h, bucket, new);
 
-	if (old == NULL)
-		insert_elem (h, bucket, new);
+    // 동일한 요소가 없으면 NEW 요소를 해시 테이블에 삽입합니다.
+    if (old == NULL)
+        insert_elem(h, bucket, new);
 
-	rehash (h);
+    // 해시 테이블의 재해시를 수행합니다.
+    rehash(h);
 
-	return old;
+    // 기존 요소가 NULL이었으면 NULL을 반환하고, 그렇지 않으면 기존 요소를 반환합니다.
+    return old;
 }
+
 
 /* Inserts NEW into hash table H, replacing any equal element
    already in the table, which is returned. */
@@ -117,12 +124,14 @@ hash_replace (struct hash *h, struct hash_elem *new) {
 	return old;
 }
 
-/* Finds and returns an element equal to E in hash table H, or a
-   null pointer if no equal element exists in the table. */
+/* 해시 테이블 H에서 E와 동일한 요소를 찾아 반환합니다.
+   만약 동일한 요소가 테이블에 없으면, NULL 포인터를 반환합니다. */
 struct hash_elem *
-hash_find (struct hash *h, struct hash_elem *e) {
-	return find_elem (h, find_bucket (h, e), e);
+hash_find(struct hash *h, struct hash_elem *e) {
+    // E 요소가 속할 버킷을 찾습니다.
+    return find_elem(h, find_bucket(h, e), e);
 }
+
 
 /* Finds, removes, and returns an element equal to E in hash
    table H.  Returns a null pointer if no equal element existed
@@ -283,18 +292,23 @@ find_bucket (struct hash *h, struct hash_elem *e) {
 	return &h->buckets[bucket_idx];
 }
 
-/* Searches BUCKET in H for a hash element equal to E.  Returns
-   it if found or a null pointer otherwise. */
+/* BUCKET에 있는 해시 테이블 H에서 E와 동일한 해시 요소를 찾습니다.
+   동일한 요소를 찾으면 해당 요소를 반환하고, 그렇지 않으면 NULL 포인터를 반환합니다. */
 static struct hash_elem *
-find_elem (struct hash *h, struct list *bucket, struct hash_elem *e) {
-	struct list_elem *i;
+find_elem(struct hash *h, struct list *bucket, struct hash_elem *e) {
+    struct list_elem *i;
 
-	for (i = list_begin (bucket); i != list_end (bucket); i = list_next (i)) {
-		struct hash_elem *hi = list_elem_to_hash_elem (i);
-		if (!h->less (hi, e, h->aux) && !h->less (e, hi, h->aux))
-			return hi;
-	}
-	return NULL;
+    // BUCKET에 있는 리스트의 처음부터 끝까지 순회하며 요소를 찾음
+    for (i = list_begin(bucket); i != list_end(bucket); i = list_next(i)) {
+        // 리스트 요소를 해시 테이블 요소로 변환
+        struct hash_elem *hi = list_elem_to_hash_elem(i);
+
+        // hi와 e가 동일한 요소인지 비교
+        if (!h->less(hi, e, h->aux) && !h->less(e, hi, h->aux))
+            return hi;  // 동일한 요소를 찾으면 반환
+    }
+
+    return NULL;  // 동일한 요소가 없으면 NULL 반환
 }
 
 /* Returns X with its lowest-order bit set to 1 turned off. */
