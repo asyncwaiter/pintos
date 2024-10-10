@@ -71,7 +71,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct vm_entry vm_entry;
 	vm_entry.vaddr = va;
 
-	struct hash_elem *found_elem = hash_find(&spt->vm_page_map, &vm_entry.hash_elem); // hash 먼저 찾고
+	struct hash_elem *found_elem = hash_find(&spt->vm_page_map, &vm_entry.hash_elem); // hash 먼저 찾고 그걸로
 	if (!found_elem)
 		return NULL;
 
@@ -89,7 +89,26 @@ bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
-	/* TODO: Fill this function. */
+	/* 문제 1. 어디서 vm_entry를 생성할 것인가?
+	* spt_insert_page 함수는 언제 실행되는가를 먼저 알아야함
+	* 매개 변수로 전해지는 page가 이미 생성된 이후라면?
+	* vm_entry는 page 하나마다 생겨야함 -> 그렇다면 여기서 생성하고 초기화 해도되지 않나?
+	*/
+
+	// struct vm_entry *vm_entry = malloc(sizeof(struct vm_entry));
+	// if (!vm_entry) // 메모리 할당 실패
+	// 	return false;
+	
+	// vm_entry->vaddr = page->va;
+	// 여기서 어떻게 page로 type에 대한 정보를 찾을건가?
+	// 아니면 그냥 매개변수로 vm_entry를 전달받아서 그걸로 페이지를 할당받고 찾는방식?
+	// 아냐 그럼 이 함수는 페이지를 해쉬에 넣는건데 그건 범위를 벗어나버림
+	// 그러면 페이지를 할당 받을때마다 vm_entry를 따로 밖에서 만들어주는게 더 자연스럽게 느껴지긴함
+	// 그리고 그렇게 vm_entry와 연결된 page를 그냥 여기서는 해쉬에만 넣어주고 끝내자.
+	
+	if(hash_insert(&spt->vm_page_map, &page->vm_entry->hash_elem) == NULL){
+		succ = true;
+	}
 
 	return succ;
 }

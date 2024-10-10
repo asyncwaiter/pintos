@@ -46,7 +46,8 @@ struct page {
 	void *va;              /* Address in terms of user space */
 	struct frame *frame;   /* Back reference for frame */
 
-	/* Your implementation */
+	/* Your implementation 👻*/
+	struct vm_entry *vm_entry;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
