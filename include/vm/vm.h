@@ -84,7 +84,7 @@ struct page_operations {
 
 /* Representation of current process's memory space.
  * We don't want to force you to obey any specific design for this struct.
- * All designs up to you for this. 이뚜띤 👻 */
+ * All designs up to you for this. 👻 */
 
 struct vm_entry {
 	uint16_t type;		/* VM_BIN, VM_FILE, VM_ANON's types */

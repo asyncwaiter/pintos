@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "threads/interrupt.h"
 
-// #ifdef VM 이뚜띤 나중에 주석풀어
+// #ifdef VM 👻 나중에 주석풀어
 #include "vm/vm.h"
 // #endif
 
@@ -115,7 +115,7 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
-// #ifdef USERPROG 이뚜띤 나중에 주석풀어
+// #ifdef USERPROG 👻 나중에 주석풀어
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
 	struct file **fd_table;
@@ -131,7 +131,7 @@ struct thread {
 	
 	struct file *running;		// minjae's
 // #endif
-// #ifdef VM 이뚜띤 나중에 주석풀어
+// #ifdef VM 👻 나중에 주석풀어
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
 // #endif

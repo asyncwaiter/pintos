@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "mmu.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -37,7 +38,7 @@ static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
 
-/* 이뚜띤 선언 */
+/* 👻 선언 */
 unsigned vm_hash_func(const struct hash_elem *e, void *aux UNUSED);
 bool vm_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
 
@@ -64,11 +65,21 @@ err:
 	return false;
 }
 
-/* Find VA from spt and return page. On error, return NULL. */
+/* Find VA from spt and return page. On error, return NULL. 👻 */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
-	/* TODO: Fill this function. */
+	struct vm_entry vm_entry;
+	vm_entry.vaddr = va;
+
+	struct hash_elem *found_elem = hash_find(&spt->vm_page_map, &vm_entry.hash_elem); // hash 먼저 찾고
+	if (!found_elem)
+		return NULL;
+
+	struct vm_entry *found_vm_entry = hash_entry(found_elem, struct vm_entry, hash_elem); // vm_entry 찾고
+	if (!found_vm_entry->is_loaded)
+		return NULL;
+
+	struct page *page = pml4_get_page(thread_current()->pml4, found_vm_entry->vaddr); // 해당 주소로 물리 page 찾기, 실패시 NULL
 
 	return page;
 }
