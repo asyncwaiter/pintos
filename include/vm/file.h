@@ -6,7 +6,12 @@
 struct page;
 enum vm_type;
 
+/* 👻 */
 struct file_page {
+	struct file* file;	/* 매핑된 파일 */
+	size_t offset;
+	size_t read_bytes;	/* 가상주소에 쓰인 데이터 크기 */
+	size_t zero_bytes;
 };
 
 void vm_file_init (void);

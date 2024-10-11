@@ -47,7 +47,9 @@ struct page {
 	struct frame *frame;   /* Back reference for frame */
 
 	/* Your implementation 👻*/
-	struct vm_entry *vm_entry;
+	bool is_loaded;
+	bool writable;
+	struct hash_elem hash_elem;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -65,6 +67,8 @@ struct page {
 struct frame {
 	void *kva;
 	struct page *page;
+	bool is_used;
+	struct list_elem frame_elem;
 };
 
 /* The function table for page operations.
@@ -87,27 +91,12 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. 👻 */
 
-struct vm_entry {
-	uint16_t type;		/* VM_BIN, VM_FILE, VM_ANON's types */
-	void *vaddr; 		/* vm-entry가 관리하는 가상페이지 번호 */
-	bool writable;		
-
-	bool is_loaded;		/* 물리메모리 탑재 여부 */
-	struct file* file;	/* 매핑된 파일 */
-	
-	size_t offset;
-	size_t read_bytes;	/* 가상주소에 쓰인 데이터 크기 */
-	size_t zero_bytes;
-
-	struct hash_elem hash_elem;
-};
-
 struct supplemental_page_table {
-	struct hash vm_page_map;
+	struct hash page_hash;
 };
 
 struct frame_table {
-
+	struct list frame_list;
 };
 
 /* 사용중인 스왑 슬롯과 빈 스왑 슬롯들을 추적, 

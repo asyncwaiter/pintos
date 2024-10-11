@@ -7,6 +7,7 @@
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
+struct frame_table global_ft;
 void
 vm_init (void) {
 	vm_anon_init ();
@@ -16,7 +17,8 @@ vm_init (void) {
 #endif
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
-	/* TODO: Your code goes here. */
+	/* TODO: Your code goes here. 👻 */
+	list_init(&global_ft.frame_list);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -39,8 +41,8 @@ static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
 
 /* 👻 선언 */
-unsigned vm_hash_func(const struct hash_elem *e, void *aux UNUSED);
-bool vm_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED);
+bool page_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
 
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
@@ -68,20 +70,18 @@ err:
 /* Find VA from spt and return page. On error, return NULL. 👻 */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct vm_entry vm_entry;
-	vm_entry.vaddr = va;
+	struct page page;
+	page.va = va;
 
-	struct hash_elem *found_elem = hash_find(&spt->vm_page_map, &vm_entry.hash_elem); // hash 먼저 찾고 그걸로
+	struct hash_elem *found_elem = hash_find(&spt->page_hash, &page.hash_elem); // hash 먼저 찾고 그걸로
 	if (!found_elem)
 		return NULL;
 
-	struct vm_entry *found_vm_entry = hash_entry(found_elem, struct vm_entry, hash_elem); // vm_entry 찾고
-	if (!found_vm_entry->is_loaded)
+	struct page *found_page = hash_entry(found_elem, struct page, hash_elem); // vm_entry 찾고
+	if (!found_page->is_loaded)
 		return NULL;
 
-	struct page *page = pml4_get_page(thread_current()->pml4, found_vm_entry->vaddr); // 해당 주소로 물리 page 찾기, 실패시 NULL
-
-	return page;
+	return found_page;
 }
 
 /* Insert PAGE into spt with validation. 👻 */
@@ -89,24 +89,8 @@ bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
-	/* 문제 1. 어디서 vm_entry를 생성할 것인가?
-	* spt_insert_page 함수는 언제 실행되는가를 먼저 알아야함
-	* 매개 변수로 전해지는 page가 이미 생성된 이후라면?
-	* vm_entry는 page 하나마다 생겨야함 -> 그렇다면 여기서 생성하고 초기화 해도되지 않나?
-	*/
 
-	// struct vm_entry *vm_entry = malloc(sizeof(struct vm_entry));
-	// if (!vm_entry) // 메모리 할당 실패
-	// 	return false;
-	
-	// vm_entry->vaddr = page->va;
-	// 여기서 어떻게 page로 type에 대한 정보를 찾을건가?
-	// 아니면 그냥 매개변수로 vm_entry를 전달받아서 그걸로 페이지를 할당받고 찾는방식?
-	// 아냐 그럼 이 함수는 페이지를 해쉬에 넣는건데 그건 범위를 벗어나버림
-	// 그러면 페이지를 할당 받을때마다 vm_entry를 따로 밖에서 만들어주는게 더 자연스럽게 느껴지긴함
-	// 그리고 그렇게 vm_entry와 연결된 page를 그냥 여기서는 해쉬에만 넣어주고 끝내자.
-	
-	if(hash_insert(&spt->vm_page_map, &page->vm_entry->hash_elem) == NULL){
+	if(hash_insert(&spt->page_hash, &page->hash_elem) == NULL){
 		succ = true;
 	}
 
@@ -123,7 +107,7 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
-	 /* TODO: The policy for eviction is up to you. */
+	/* TODO: The policy for eviction is up to you. */
 
 	return victim;
 }
@@ -138,17 +122,46 @@ vm_evict_frame (void) {
 	return NULL;
 }
 
+struct frame *get_available_frame (void) {
+	for (struct list_elem *e = list_begin(&global_ft); e != list_end(&global_ft); e = list_next(e)){
+		struct frame *f = list_entry(e, struct frame, frame_elem);
+		if (!f->is_used) {
+			f->is_used = true;
+			return f;
+		}
+	}
+	return NULL;
+}
+
 /* palloc() and get frame. If there is no available page, evict the page
  * and return it. This always return valid address. That is, if the user pool
  * memory is full, this function evicts the frame to get the available memory
  * space.*/
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = NULL;
 	/* TODO: Fill this function. 👻 */
+	struct frame *old_frame = get_available_frame();
+	if (old_frame != NULL)
+		return old_frame;
+		
+	void *kva = palloc_get_page(PAL_USER);
+	if (kva == NULL) {
+		vm_evict_frame();
+	}
+	struct frame *frame = malloc(sizeof(struct frame));
+	if (frame == NULL){
+		PANIC("==malloc failed==");
+	}
+	
+	frame->kva = kva;
+	frame->is_used = false;
+	frame->page = NULL;
+
+	list_push_back(&global_ft, &frame->frame_elem);
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
+
 	return frame;
 }
 
@@ -210,7 +223,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table 👻*/
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
-	bool initialized = hash_init(&spt->vm_page_map, vm_hash_func, vm_hash_less, NULL);
+	bool initialized = hash_init(&spt->page_hash, page_hash_func, page_hash_less, NULL);
 	if (initialized){
 		// 성실처리 지금은 뭘로하는게 좋을지 모르겠음
 		// 아마 밑에 실패시에 goto error나 exit을 해줘야하지 않을까 싶음
@@ -231,13 +244,13 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 }
 
 
-unsigned vm_hash_func(const struct hash_elem *e, void *aux UNUSED) {
-    const struct vm_entry *v = hash_entry(e, struct vm_entry, hash_elem);
-    return hash_bytes(v->vaddr, strlen(v->vaddr));
+unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {
+    const struct page *p = hash_entry(e, struct page, hash_elem);
+    return hash_bytes(p->va, strlen(p->va));
 }
 
-bool vm_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
-    const struct vm_entry *v_a = hash_entry(a, struct vm_entry, hash_elem);
-    const struct vm_entry *v_b = hash_entry(b, struct vm_entry, hash_elem);
-    return strcmp(v_a->vaddr, v_b->vaddr) < 0;
+bool page_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
+    const struct page *p_a = hash_entry(a, struct page, hash_elem);
+    const struct page *p_b = hash_entry(b, struct page, hash_elem);
+    return strcmp(p_a->va, p_a->va) < 0;
 }
