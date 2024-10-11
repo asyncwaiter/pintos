@@ -138,17 +138,31 @@ vm_evict_frame (void) {
 	return NULL;
 }
 
-/* palloc() and get frame. If there is no available page, evict the page
- * and return it. This always return valid address. That is, if the user pool
- * memory is full, this function evicts the frame to get the available memory
- * space.*/
+/* palloc() 함수를 호출하여 프레임을 할당받습니다. 사용 가능한 페이지가 없으면 
+ * 페이지를 교체(evict)하여 프레임을 반환합니다.
+ * 이 함수는 항상 유효한 주소를 반환합니다. 즉, 유저 풀의 메모리가 가득 찬 경우, 
+ * 이 함수는 프레임을 교체하여 사용할 수 있는 메모리 공간을 확보합니다. */
+
+/* - 이 함수는 사용자 공간(user pool)에서 새로운 물리 페이지를 할당받습니다.
+- 물리 페이지를 성공적으로 할당받으면, 새로운 프레임 구조체를 초기화하고 반환합니다.
+- 할당에 실패한 경우 스왑을 처리하는 부분은 나중에 구현하게 되므로, 현재는 PANIC을 발생시키도록 구현합니다. */
 static struct frame *
 vm_get_frame (void) {
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. 👻 */
+	// palloc 함수 : 주어진 플래그에 따라 페이지를 할당받아 커널 가상 주소를 반환
+	frame->kva = palloc_get_page(PAL_USER);
+
+	if (frame->kva == NULL) {
+		PANIC("todo");
+	}
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
+	if (frame->page ==  NULL) {
+		vm_evict_frame();
+	}
+
 	return frame;
 }
 
