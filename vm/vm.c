@@ -7,6 +7,7 @@
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
+struct frame_table global_ft;
 void
 vm_init (void) {
 	vm_anon_init ();
@@ -17,7 +18,7 @@ vm_init (void) {
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. 👻 */
-	// 여기에 frame_table 이니셜라이즈하기
+	list_init(&global_ft.frame_list);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -42,7 +43,6 @@ static struct frame *vm_evict_frame (void);
 /* 👻 선언 */
 unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED);
 bool page_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
-struct supplemental_page_table global_spt;
 
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
@@ -89,23 +89,7 @@ bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
-	/* 문제 1. 어디서 vm_entry를 생성할 것인가?
-	* spt_insert_page 함수는 언제 실행되는가를 먼저 알아야함
-	* 매개 변수로 전해지는 page가 이미 생성된 이후라면?
-	* vm_entry는 page 하나마다 생겨야함 -> 그렇다면 여기서 생성하고 초기화 해도되지 않나?
-	*/
 
-	// struct vm_entry *vm_entry = malloc(sizeof(struct vm_entry));
-	// if (!vm_entry) // 메모리 할당 실패
-	// 	return false;
-	
-	// vm_entry->vaddr = page->va;
-	// 여기서 어떻게 page로 type에 대한 정보를 찾을건가?
-	// 아니면 그냥 매개변수로 vm_entry를 전달받아서 그걸로 페이지를 할당받고 찾는방식?
-	// 아냐 그럼 이 함수는 페이지를 해쉬에 넣는건데 그건 범위를 벗어나버림
-	// 그러면 페이지를 할당 받을때마다 vm_entry를 따로 밖에서 만들어주는게 더 자연스럽게 느껴지긴함
-	// 그리고 그렇게 vm_entry와 연결된 page를 그냥 여기서는 해쉬에만 넣어주고 끝내자.
-	
 	if(hash_insert(&spt->page_hash, &page->hash_elem) == NULL){
 		succ = true;
 	}
@@ -123,7 +107,7 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
-	 /* TODO: The policy for eviction is up to you. */
+	/* TODO: The policy for eviction is up to you. */
 
 	return victim;
 }
@@ -138,23 +122,42 @@ vm_evict_frame (void) {
 	return NULL;
 }
 
+struct frame *get_available_frame (void) {
+	for (struct list_elem *e = list_begin(&global_ft); e != list_end(&global_ft); e = list_next(e)){
+		struct frame *f = list_entry(e, struct frame, frame_elem);
+		if (!f->is_used) {
+			f->is_used = true;
+			return f;
+		}
+	}
+	return NULL;
+}
+
 /* palloc() and get frame. If there is no available page, evict the page
  * and return it. This always return valid address. That is, if the user pool
  * memory is full, this function evicts the frame to get the available memory
  * space.*/
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = NULL;
 	/* TODO: Fill this function. 👻 */
-	/**vm_get_frame 함수는 메모리 풀에서 새로운 물리메모리 페이지를 가져오는 함수임.
-	유저 메모리 풀에서 페이지를 성공적으로 가져오면 프레임을 할당하고 프레임 구조체의 멤버들을 초기화하고 프레임을 반환한다.
-
-	그러면 일단 프레임 테이블에서 확인을 해보고, 프레임 테이블에 빈 공간이 있는지 확인한 후에 해당 프레임을 줘야겠지.
-	하지만 만약에 프레임이 꽉찼을경우? 하나를 쫓아낸다.
-	그러나 어떻게 쫓아낼 것인가? 그럼 프레임에 어떤 필드를 추가해야할까? 지금은 is_used를 관리중인데 얘는 매일 사용중으로 뜨지않을까?
-
-	 */
+	struct frame *old_frame = get_available_frame();
+	if (old_frame != NULL)
+		return old_frame;
+		
+	void *kva = palloc_get_page(PAL_USER);
+	if (kva == NULL) {
+		vm_evict_frame();
+	}
+	struct frame *frame = malloc(sizeof(struct frame));
+	if (frame == NULL){
+		PANIC("==malloc failed==");
+	}
 	
+	frame->kva = kva;
+	frame->is_used = false;
+	frame->page = NULL;
+
+	list_push_back(&global_ft, &frame->frame_elem);
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);

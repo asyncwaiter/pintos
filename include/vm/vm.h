@@ -91,21 +91,6 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. 👻 */
 
-struct vm_entry {
-	uint16_t type;		/* VM_BIN, VM_FILE, VM_ANON's types */
-	void *vaddr; 		/* vm-entry가 관리하는 가상페이지 번호 */
-	bool writable;		
-
-	bool is_loaded;		/* 물리메모리 탑재 여부 */
-	struct file* file;	/* 매핑된 파일 */
-	
-	size_t offset;
-	size_t read_bytes;	/* 가상주소에 쓰인 데이터 크기 */
-	size_t zero_bytes;
-
-	struct hash_elem hash_elem;
-};
-
 struct supplemental_page_table {
 	struct hash page_hash;
 };
