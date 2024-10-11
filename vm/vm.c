@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "mmu.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -37,6 +38,10 @@ static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
 
+/* 👻 선언 */
+unsigned vm_hash_func(const struct hash_elem *e, void *aux UNUSED);
+bool vm_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
  * `vm_alloc_page`. */
@@ -60,27 +65,21 @@ err:
 	return false;
 }
 
-/* Find VA from spt and return page. On error, return NULL. */
+/* Find VA from spt and return page. On error, return NULL. 👻 */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
-	struct hash_elem *find_elem = hash_find(&spt->spt_hash, &spt->elem);
-	if (find_elem != NULL) {
-		struct spt_entry *page = hash_entry(e, struct spt_entry, va);
-	}
+	/* TODO: Fill this function. */
+
 	return page;
 }
 
-/* Insert PAGE into spt with validation. */
+/* Insert PAGE into spt with validation. 👻 */
 bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
-
-    struct spt_entry *entry = malloc(sizeof(struct spt_entry));
-    entry->user_vaddr = page->va;
-
-    hash_insert(&spt->spt_hash, &entry->elem);
+	/* TODO: Fill this function. */
 
 	return succ;
 }
@@ -110,17 +109,31 @@ vm_evict_frame (void) {
 	return NULL;
 }
 
-/* palloc() and get frame. If there is no available page, evict the page
- * and return it. This always return valid address. That is, if the user pool
- * memory is full, this function evicts the frame to get the available memory
- * space.*/
+/* palloc() 함수를 호출하여 프레임을 할당받습니다. 사용 가능한 페이지가 없으면 
+ * 페이지를 교체(evict)하여 프레임을 반환합니다.
+ * 이 함수는 항상 유효한 주소를 반환합니다. 즉, 유저 풀의 메모리가 가득 찬 경우, 
+ * 이 함수는 프레임을 교체하여 사용할 수 있는 메모리 공간을 확보합니다. */
+
+/* - 이 함수는 사용자 공간(user pool)에서 새로운 물리 페이지를 할당받습니다.
+- 물리 페이지를 성공적으로 할당받으면, 새로운 프레임 구조체를 초기화하고 반환합니다.
+- 할당에 실패한 경우 스왑을 처리하는 부분은 나중에 구현하게 되므로, 현재는 PANIC을 발생시키도록 구현합니다. */
 static struct frame *
 vm_get_frame (void) {
 	struct frame *frame = NULL;
-	/* TODO: Fill this function. */
+	/* TODO: Fill this function. 👻 */
+	// palloc 함수 : 주어진 플래그에 따라 페이지를 할당받아 커널 가상 주소를 반환
+	frame->kva = palloc_get_page(PAL_USER);
+
+	if (frame->kva == NULL) {
+		PANIC("todo");
+	}
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
+	if (frame->page ==  NULL) {
+		vm_evict_frame();
+	}
+
 	return frame;
 }
 
@@ -134,7 +147,9 @@ static bool
 vm_handle_wp (struct page *page UNUSED) {
 }
 
-/* Return true on success */
+/* Return true on success
+ * page fault가 나면 영역을 찾아야함
+ */
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
@@ -154,7 +169,7 @@ vm_dealloc_page (struct page *page) {
 	free (page);
 }
 
-/* Claim the page that allocate on VA. */
+/* Claim the page that allocate on VA. 👻 */
 bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
@@ -163,7 +178,7 @@ vm_claim_page (void *va UNUSED) {
 	return vm_do_claim_page (page);
 }
 
-/* Claim the PAGE and set up the mmu. */
+/* Claim the PAGE and set up the mmu. 👻 */
 static bool
 vm_do_claim_page (struct page *page) {
 	struct frame *frame = vm_get_frame ();
@@ -177,22 +192,32 @@ vm_do_claim_page (struct page *page) {
 	return swap_in (page, frame->kva);
 }
 
-/* Initialize new supplemental page table */
+/* Initialize new supplemental page table 👻*/
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
-	struct hash *spt_hash = &spt->spt_hash;
-	hash_init(&spt_hash, &spt_hash->hash , &spt_hash->less, NULL);
 }
 
-/* Copy supplemental page table from src to dst */
+/* Copy supplemental page table from src to dst 👻*/
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
 }
 
-/* Free the resource hold by the supplemental page table */
+/* Free the resource hold by the supplemental page table 👻*/
 void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+}
+
+
+unsigned vm_hash_func(const struct hash_elem *e, void *aux UNUSED) {
+    const struct vm_entry *v = hash_entry(e, struct vm_entry, hash_elem);
+    return hash_bytes(v->vaddr, strlen(v->vaddr));
+}
+
+bool vm_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
+    const struct vm_entry *v_a = hash_entry(a, struct vm_entry, hash_elem);
+    const struct vm_entry *v_b = hash_entry(b, struct vm_entry, hash_elem);
+    return strcmp(v_a->vaddr, v_b->vaddr) < 0;
 }

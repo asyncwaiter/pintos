@@ -191,8 +191,13 @@ __do_fork (void *aux) {
 
 	process_activate (curr);
 #ifdef VM
+<<<<<<< HEAD
 	supplemental_page_table_init (&current->spt); 	// 발견
 	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
+=======
+	supplemental_page_table_init (&curr->spt);
+	if (!supplemental_page_table_copy (&curr->spt, &parent->spt))
+>>>>>>> master
 		goto error;
 #else
 	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
