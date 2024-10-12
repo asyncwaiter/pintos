@@ -3,7 +3,7 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
-#include "mmu.h"
+#include "threads/mmu.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -107,7 +107,7 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
-	/* TODO: The policy for eviction is up to you. */
+	
 
 	return victim;
 }
@@ -118,6 +118,7 @@ static struct frame *
 vm_evict_frame (void) {
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
+	
 
 	return NULL;
 }
@@ -146,21 +147,21 @@ vm_get_frame (void) {
 		
 	void *kva = palloc_get_page(PAL_USER);
 	if (kva == NULL) {
-		vm_evict_frame();
+		struct frame *f = vm_evict_frame();
+		kva = f->kva;
 	}
 	struct frame *frame = malloc(sizeof(struct frame));
-	if (frame == NULL){
-		PANIC("==malloc failed==");
-	}
+	ASSERT (frame != NULL);
 	
 	frame->kva = kva;
-	frame->is_used = false;
+	frame->is_used = true;
 	frame->page = NULL;
+	ASSERT (frame->page == NULL);
 
 	list_push_back(&global_ft, &frame->frame_elem);
 
-	ASSERT (frame != NULL);
-	ASSERT (frame->page == NULL);
+	void *p_addr = vtop(kva);
+	pml4_set_page(thread_current()->pml4, kva, p_addr, true);
 
 	return frame;
 }
@@ -216,6 +217,7 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+		
 
 	return swap_in (page, frame->kva);
 }
