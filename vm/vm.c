@@ -201,8 +201,25 @@ vm_dealloc_page (struct page *page) {
 /* Claim the page that allocate on VA. 👻 */
 bool
 vm_claim_page (void *va UNUSED) {
-	struct page *page = NULL;
-	/* TODO: Fill this function */
+	struct page *page = malloc(sizeof(struct page));
+	if(!page)
+		return false;
+	page->va = va;
+	page->is_loaded = false;
+	page->writable = false;
+	page->frame = NULL;
+	page->operations = NULL;
+	
+	struct hash_elem *found_hash_elem = hash_find(&thread_current()->spt, &page->hash_elem);
+	if (found_hash_elem){
+		page = hash_entry(found_hash_elem, struct page, hash_elem);
+		return vm_do_claim_page (page);
+	}
+
+	if(!hash_insert(&thread_current()->spt, found_hash_elem)){ // 안들어가면 NULL 리턴함
+		free(page);
+		return false;
+	}
 
 	return vm_do_claim_page (page);
 }
