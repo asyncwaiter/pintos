@@ -106,10 +106,21 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 /* Get the struct frame, that will be evicted. */
 static struct frame *
 vm_get_victim (void) {
-	struct frame *victim = NULL;
-	
+	struct list_elem *e = list_begin(&global_ft.frame_list);
+	while (e!=list_end(&global_ft.frame_list))
+	{
+		struct frame *f = list_entry(e, struct frame, frame_elem);
+		struct page *p = f->page;
 
-	return victim;
+		if(pml4_is_accessed(thread_current()->pml4,p->va)){
+			pml4_set_accessed(thread_current()->pml4, p->va, false);
+			e = list_next(e);
+		} else{
+			return f;
+		}
+	}
+
+	return list_entry(list_begin(&global_ft.frame_list), struct frame, frame_elem);
 }
 
 /* Evict one page and return the corresponding frame.
@@ -118,6 +129,7 @@ static struct frame *
 vm_evict_frame (void) {
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
+	
 	
 
 	return NULL;
@@ -204,6 +216,7 @@ vm_claim_page (void *va UNUSED) {
 	struct page *page = malloc(sizeof(struct page));
 	if(!page)
 		return false;
+		
 	page->va = va;
 	page->is_loaded = false;
 	page->writable = false;
@@ -212,11 +225,12 @@ vm_claim_page (void *va UNUSED) {
 	
 	struct hash_elem *found_hash_elem = hash_find(&thread_current()->spt, &page->hash_elem);
 	if (found_hash_elem){
-		page = hash_entry(found_hash_elem, struct page, hash_elem);
-		return vm_do_claim_page (page);
+		struct page *found_p = hash_entry(found_hash_elem, struct page, hash_elem);
+		free(page); // 중복된 경우 자원해제
+		return vm_do_claim_page (found_p);
 	}
 
-	if(!hash_insert(&thread_current()->spt, found_hash_elem)){ // 안들어가면 NULL 리턴함
+	if(!hash_insert(&thread_current()->spt, page)){ // 안들어가면 NULL 리턴함
 		free(page);
 		return false;
 	}
@@ -232,9 +246,11 @@ vm_do_claim_page (struct page *page) {
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
-
+	
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	pml4_set_page(thread_current()->pml4, page->va, frame->kva, true);
+	if(!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable))
+		return false;
+
 
 	return swap_in (page, frame->kva);
 }
