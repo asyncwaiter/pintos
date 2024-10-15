@@ -128,9 +128,12 @@ vm_get_victim (void) {
 static struct frame *
 vm_evict_frame (void) {
 	struct frame *victim UNUSED = vm_get_victim ();
-	/* TODO: swap out the victim and return the evicted frame. */
+	ASSERT(victim != NULL);
 	
-	
+	struct page *page = victim->page;
+    ASSERT(page != NULL);
+
+	swap_out(page);
 
 	return NULL;
 }
@@ -159,8 +162,9 @@ vm_get_frame (void) {
 		
 	void *kva = palloc_get_page(PAL_USER);
 	if (kva == NULL) {
-		struct frame *f = vm_evict_frame();
-		kva = f->kva;
+		// struct frame *f = vm_evict_frame();
+		// kva = f->kva;
+		PANIC("evict");
 	}
 	struct frame *frame = malloc(sizeof(struct frame));
 	ASSERT (frame != NULL);
@@ -213,27 +217,9 @@ vm_dealloc_page (struct page *page) {
 /* Claim the page that allocate on VA. 👻 */
 bool
 vm_claim_page (void *va UNUSED) {
-	struct page *page = malloc(sizeof(struct page));
-	if(!page)
+	struct page *page = spt_find_page(&thread_current()->spt, va);
+	if(page == NULL)
 		return false;
-		
-	page->va = va;
-	page->is_loaded = false;
-	page->writable = false;
-	page->frame = NULL;
-	page->operations = NULL;
-	
-	struct hash_elem *found_hash_elem = hash_find(&thread_current()->spt, &page->hash_elem);
-	if (found_hash_elem){
-		struct page *found_p = hash_entry(found_hash_elem, struct page, hash_elem);
-		free(page); // 중복된 경우 자원해제
-		return vm_do_claim_page (found_p);
-	}
-
-	if(!hash_insert(&thread_current()->spt, page)){ // 안들어가면 NULL 리턴함
-		free(page);
-		return false;
-	}
 
 	return vm_do_claim_page (page);
 }

@@ -49,7 +49,7 @@ struct page {
 	/* Your implementation 👻*/
 	bool is_loaded;
 	bool writable;
-	struct hash_elem hash_elem;
+	struct hash_elem hash_elem;	
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
