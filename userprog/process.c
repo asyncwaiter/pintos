@@ -690,7 +690,6 @@ setup_stack (struct intr_frame *if_) {
 	}
 	return success;
 }
-
 /* Adds a mapping from user virtual address UPAGE to kernel
  * virtual address KPAGE to the page table.
  * If WRITABLE is true, the user process may modify the page;
@@ -709,6 +708,7 @@ install_page (void *upage, void *kpage, bool writable) {
 	return (pml4_get_page (t->pml4, upage) == NULL
 			&& pml4_set_page (t->pml4, upage, kpage, writable));
 }
+
 #else
 /* From here, codes will be used after project 3.
  * If you want to implement the function for only project 2, implement it on the
@@ -797,15 +797,23 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
-	void *kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-	if(kpage != NULL){
-		success = install_page(stack_bottom, kpage, true); // true로 주는 이유는 stack영역이기때문에 writable해야함
-		if (success){
+	if(vm_alloc_page(VM_ANON, stack_bottom, 1)){
+		success = vm_claim_page(stack_bottom);
+		if(success){
 			if_->rsp = USER_STACK;
-		} else {
-			palloc_free_page(kpage);
+			return success;
 		}
 	}
+	// void *kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+
+	// if(kpage != NULL){
+	// 	success = install_page(stack_bottom, kpage, true); // true로 주는 이유는 stack영역이기때문에 writable해야함
+	// 	if (success){
+	// 		if_->rsp = stack_bottom;
+	// 	} else {
+	// 		palloc_free_page(kpage);
+	// 	}
+	// }
 	return success;
 }
 #endif /* VM */
