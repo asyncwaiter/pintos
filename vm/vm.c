@@ -176,8 +176,8 @@ vm_get_frame (void) {
 
 	list_push_back(&global_ft, &frame->frame_elem);
 
-	void *p_addr = vtop(kva);
-	pml4_set_page(thread_current()->pml4, kva, p_addr, true);
+	// void *p_addr = vtop(kva);
+	// pml4_set_page(thread_current()->pml4, kva, p_addr, true);
 
 	return frame;
 }
@@ -267,11 +267,11 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 
 unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {
     const struct page *p = hash_entry(e, struct page, hash_elem);
-    return hash_bytes(p->va, strlen(p->va));
+    return hash_bytes(&p->va, sizeof(p->va));
 }
 
 bool page_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
     const struct page *p_a = hash_entry(a, struct page, hash_elem);
     const struct page *p_b = hash_entry(b, struct page, hash_elem);
-    return strcmp(p_a->va, p_a->va) < 0;
+    return p_a->va < p_a->va;
 }
