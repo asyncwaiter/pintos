@@ -60,8 +60,30 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
+		struct page *page = (struct page *)malloc(sizeof(struct page));
+		vm_initializer *initializer = NULL;
+		switch (VM_TYPE(type))
+		{
+		case VM_ANON:
+			initializer = anon_initializer;
+			break;
+		case VM_FILE:
+			initializer = file_backed_initializer;
+			break;
+		default:
+			goto err;
+		}
+
+		uninit_new(page, upage, init, type, aux, initializer);
+		page->writable = writable;
 
 		/* TODO: Insert the page into the spt. */
+		if(!spt_insert_page(spt, page)){
+			free(page);
+			goto err;
+		}
+		
+		return true;
 	}
 err:
 	return false;
@@ -273,5 +295,5 @@ unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {
 bool page_hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
     const struct page *p_a = hash_entry(a, struct page, hash_elem);
     const struct page *p_b = hash_entry(b, struct page, hash_elem);
-    return p_a->va < p_a->va;
+    return p_a->va < p_b->va;
 }
