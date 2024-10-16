@@ -49,7 +49,7 @@ struct page {
 	/* Your implementation 👻*/
 	bool is_loaded;
 	bool writable;
-	struct hash_elem hash_elem;
+	struct hash_elem hash_elem;	
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -103,21 +103,6 @@ struct frame_table {
 pintos-mkdisk swap.dsk --swap-size=n으로 스왑파티션 생성 가능 */
 struct swap_table {
 
-};
-
-struct vm_entry {
-	uint16_t type;		/* VM_BIN, VM_FILE, VM_ANON's types */
-	void *vaddr; 		/* vm-entry가 관리하는 가상페이지 번호 */
-	bool writable;		
-
-	bool is_loaded;		/* 물리메모리 탑재 여부 */
-	struct file* file;	/* 매핑된 파일 */
-	
-	size_t offset;
-	size_t read_bytes;	/* 가상주소에 쓰인 데이터 크기 */
-	size_t zero_bytes;
-
-	struct hash_elem hash_elem;
 };
 
 #include "threads/thread.h"
