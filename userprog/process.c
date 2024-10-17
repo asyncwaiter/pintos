@@ -771,7 +771,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		struct aux_data *aux = malloc(sizeof(struct aux_data));
 		aux->file = file;
 		aux->ofs = ofs;
-		aux->read_bytes = read_bytes;
+		aux->read_bytes = page_read_bytes;
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux)){
 			free(aux);
@@ -793,10 +793,6 @@ setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
 
-	/* TODO: Map the stack on stack_bottom and claim the page immediately.
-	 * TODO: If success, set the rsp accordingly.
-	 * TODO: You should mark the page is stack. */
-	/* TODO: Your code goes here */
 	if(vm_alloc_page(VM_ANON, stack_bottom, 1)){
 		success = vm_claim_page(stack_bottom);
 		if(success){
@@ -804,16 +800,6 @@ setup_stack (struct intr_frame *if_) {
 			return success;
 		}
 	}
-	// void *kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-
-	// if(kpage != NULL){
-	// 	success = install_page(stack_bottom, kpage, true); // true로 주는 이유는 stack영역이기때문에 writable해야함
-	// 	if (success){
-	// 		if_->rsp = stack_bottom;
-	// 	} else {
-	// 		palloc_free_page(kpage);
-	// 	}
-	// }
 	return success;
 }
 #endif /* VM */
