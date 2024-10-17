@@ -93,15 +93,16 @@ err:
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page page;
-	page.va = va;
+	page.va = pg_round_down(va);
+	// page.va = va;
 
 	struct hash_elem *found_elem = hash_find(&spt->page_hash, &page.hash_elem); // hash 먼저 찾고 그걸로
 	if (!found_elem)
 		return NULL;
 
 	struct page *found_page = hash_entry(found_elem, struct page, hash_elem); // vm_entry 찾고
-	if (!found_page->is_loaded)
-		return NULL;
+	// if (!found_page->is_loaded)
+	// 	return NULL;
 
 	return found_page;
 }
