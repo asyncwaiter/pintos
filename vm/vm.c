@@ -332,6 +332,11 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	hash_clear(&spt->page_hash, page_destroy);
 }
 
+void action_func(struct hash_elem *e, void *aux) {
+	struct page *page = hash_entry(e, struct page, hash_elem);
+	destroy(page);
+	free(page);
+}
 
 unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {
     const struct page *p = hash_entry(e, struct page, hash_elem);
