@@ -205,8 +205,27 @@ vm_get_frame (void) {
 }
 
 /* Growing the stack. */
+// static void
+// vm_stack_growth (void *addr UNUSED, uintptr_t rsp) {
+// 	// 하나 이상의 anonymous 페이지를 할당하여 스택 크기를 늘립니다. 
+// 	// 이로써 addr은 faulted 주소(폴트가 발생하는 주소) 에서 유효한 주소가 됩니다.  
+// 	// 페이지를 할당할 때는 주소를 PGSIZE 기준으로 내림하세요.
+// 	uintptr_t align_addr = pg_round_down(addr);
+//     uintptr_t align_rsp = pg_round_down(rsp);
+
+// 	for (uintptr_t p = align_rsp - PGSIZE; p >= align_addr; p -= PGSIZE) {
+//         if (!spt_find_page(&thread_current()->spt, p)) {
+//             vm_alloc_page(VM_ANON, p, true);
+//         }
+//     }
+// }
 static void
 vm_stack_growth (void *addr UNUSED) {
+	uintptr_t aligned = pg_round_down(addr);
+	for (; aligned < USER_STACK - PGSIZE; aligned += PGSIZE) {
+		if (!spt_find_page(&thread_current()->spt, aligned))
+			vm_alloc_page(VM_ANON, aligned, true);
+	}
 }
 
 /* Handle the fault on write_protected page */
