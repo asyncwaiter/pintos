@@ -78,16 +78,12 @@ process_create_initd (const char *file_name) {
 /* A thread function that launches first user process. */
 static void
 initd (void *f_name) {
-	// printf("initd\n");
 #ifdef VM
 	supplemental_page_table_init (&thread_current ()->spt);
 #endif
-	// printf("initd1\n"); 
 	process_init ();
-	// printf("initd2\n");
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
-	// printf("initd3\n");
 	NOT_REACHED ();
 }
 
@@ -771,7 +767,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		struct aux_data *aux = malloc(sizeof(struct aux_data));
 		aux->file = file;
 		aux->ofs = ofs;
-		aux->read_bytes = read_bytes;
+		aux->read_bytes = page_read_bytes;
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux)){
 			free(aux);
@@ -804,16 +800,6 @@ setup_stack (struct intr_frame *if_) {
 			return success;
 		}
 	}
-	// void *kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-
-	// if(kpage != NULL){
-	// 	success = install_page(stack_bottom, kpage, true); // true로 주는 이유는 stack영역이기때문에 writable해야함
-	// 	if (success){
-	// 		if_->rsp = stack_bottom;
-	// 	} else {
-	// 		palloc_free_page(kpage);
-	// 	}
-	// }
 	return success;
 }
 #endif /* VM */
