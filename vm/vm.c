@@ -310,7 +310,6 @@ void page_copy(struct hash_elem *e, void *aux UNUSED) {
 		}
 	}
 }
-
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
@@ -330,12 +329,6 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 	hash_clear(&spt->page_hash, page_destroy);
-}
-
-void action_func(struct hash_elem *e, void *aux) {
-	struct page *page = hash_entry(e, struct page, hash_elem);
-	destroy(page);
-	free(page);
 }
 
 unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {
