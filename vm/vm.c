@@ -94,7 +94,6 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page page;
 	page.va = pg_round_down(va);
-	// page.va = va;
 
 	struct hash_elem *found_elem = hash_find(&spt->page_hash, &page.hash_elem); // hash 먼저 찾고 그걸로
 	if (!found_elem)
@@ -206,8 +205,27 @@ vm_get_frame (void) {
 }
 
 /* Growing the stack. */
+// static void
+// vm_stack_growth (void *addr UNUSED, uintptr_t rsp) {
+// 	// 하나 이상의 anonymous 페이지를 할당하여 스택 크기를 늘립니다. 
+// 	// 이로써 addr은 faulted 주소(폴트가 발생하는 주소) 에서 유효한 주소가 됩니다.  
+// 	// 페이지를 할당할 때는 주소를 PGSIZE 기준으로 내림하세요.
+// 	uintptr_t align_addr = pg_round_down(addr);
+//     uintptr_t align_rsp = pg_round_down(rsp);
+
+// 	for (uintptr_t p = align_rsp - PGSIZE; p >= align_addr; p -= PGSIZE) {
+//         if (!spt_find_page(&thread_current()->spt, p)) {
+//             vm_alloc_page(VM_ANON, p, true);
+//         }
+//     }
+// }
 static void
 vm_stack_growth (void *addr UNUSED) {
+	uintptr_t aligned = pg_round_down(addr);
+	for (; aligned < USER_STACK - PGSIZE; aligned += PGSIZE) {
+		if (!spt_find_page(&thread_current()->spt, aligned))
+			vm_alloc_page(VM_ANON, aligned, true);
+	}
 }
 
 /* Handle the fault on write_protected page */
@@ -215,28 +233,29 @@ static bool
 vm_handle_wp (struct page *page UNUSED) {
 }
 
-/* Return true on success
- * page fault가 나면 영역을 찾아야함
- */
+/* Return true on success */
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
 	struct page *page = spt_find_page(spt, addr);
-	/* TODO: Validate the fault */
-	/* TODO: Your code goes here */
-	if (page == NULL)
-		return false;
-	
-	if (not_present){
-		if (!vm_do_claim_page(page))
+	if (page == NULL) {
+		if (addr >= USER_STACK_LIMIT) {
+			uintptr_t diff = f->rsp - (uintptr_t)addr;
+			if (diff <= 8){
+				vm_stack_growth(addr);
+				page = spt_find_page(spt, addr);
+				if(page == NULL)
+					return false;
+			} else {
+				return false;
+			}
+		} else 
 			return false;
 	}
-
 	if (write && !page->writable)
 		return false;
-
-	return true;
+	return vm_do_claim_page(page);
 }
 
 /* Free the page.
@@ -320,8 +339,7 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 /* Free the resource hold by the supplemental page table 👻*/
 void page_destroy(struct hash_elem *e, void *aux UNUSED) {
 	struct page *page = hash_entry(e, struct page, hash_elem);
-	destroy(page);
-	free(page);
+	vm_dealloc_page(page);
 }
 
 void
@@ -329,6 +347,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 	hash_clear(&spt->page_hash, page_destroy);
+	// hash_destroy(&spt->page_hash, NULL);
 }
 
 unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {

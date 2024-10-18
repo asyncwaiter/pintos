@@ -239,9 +239,9 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
-	lock_acquire(&syscall_lock); //minjae's
+	lock_acquire(&syscall_lock); 
 	success = load (file_name, &_if);
-	lock_release(&syscall_lock); //minjae's
+	lock_release(&syscall_lock); 
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -295,7 +295,7 @@ process_exit (void) {
 		close(i);
 	}
 	palloc_free_multiple(curr->fd_table, FD_PAGES);
-	file_close(curr->running); //minjae's
+	file_close(curr->running); 
 	process_cleanup();
 
 	sema_up(&curr->wait_sema); // 끝나고 기다리는 부모한테 세마포 넘겨줌
