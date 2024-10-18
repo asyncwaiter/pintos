@@ -94,7 +94,6 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page page;
 	page.va = pg_round_down(va);
-	// page.va = va;
 
 	struct hash_elem *found_elem = hash_find(&spt->page_hash, &page.hash_elem); // hash 먼저 찾고 그걸로
 	if (!found_elem)
@@ -215,28 +214,29 @@ static bool
 vm_handle_wp (struct page *page UNUSED) {
 }
 
-/* Return true on success
- * page fault가 나면 영역을 찾아야함
- */
+/* Return true on success */
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
 	struct page *page = spt_find_page(spt, addr);
-	/* TODO: Validate the fault */
-	/* TODO: Your code goes here */
-	if (page == NULL)
-		return false;
-	
-	if (not_present){
-		if (!vm_do_claim_page(page))
+	if (page == NULL) {
+		if (addr >= USER_STACK_LIMIT) {
+			uintptr_t diff = f->rsp - (uintptr_t)addr;
+			if (diff <= 8){
+				vm_stack_growth(addr);
+				page = spt_find_page(spt, addr);
+				if(page == NULL)
+					return false;
+			} else {
+				return false;
+			}
+		} else 
 			return false;
 	}
-
 	if (write && !page->writable)
 		return false;
-
-	return true;
+	return vm_do_claim_page(page);
 }
 
 /* Free the page.
@@ -321,8 +321,7 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 /* Free the resource hold by the supplemental page table 👻*/
 void page_destroy(struct hash_elem *e, void *aux UNUSED) {
 	struct page *page = hash_entry(e, struct page, hash_elem);
-	destroy(page);
-	free(page);
+	vm_dealloc_page(page);
 }
 
 void
@@ -330,6 +329,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 	hash_clear(&spt->page_hash, page_destroy);
+	// hash_destroy(&spt->page_hash, NULL);
 }
 
 unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {
