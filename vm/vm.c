@@ -285,18 +285,52 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 }
 
 /* Copy supplemental page table from src to dst 👻*/
+void page_copy(struct hash_elem *e, void *aux UNUSED) {
+	struct page *page = hash_entry(e, struct page, hash_elem);
+	int type = VM_TYPE(page->operations->type);
+
+	void *aux_copy = NULL;
+
+	if (type == VM_UNINIT) {
+		if (page->uninit.aux) {
+			aux_copy = malloc(sizeof(struct file_page));
+			memcpy(aux_copy, page->uninit.aux, sizeof(struct file_page));
+		}
+		vm_alloc_page_with_initializer(page->uninit.type, page->va, page->writable, page->uninit.init, aux_copy);
+	}
+	else if (type == VM_ANON) {
+		// 이미 초기화된 ANON 타입의 페이지
+		vm_alloc_page(page->operations->type, page->va, page->writable);
+
+		// 만약 프레임이 있으면, 해당 프레임을 자식 프로세스의 페이지로 복사
+		if (page->frame != NULL) {
+			vm_claim_page(page->va);
+			struct page *page_child = spt_find_page(&thread_current()->spt, page->va);
+			memcpy(page_child->frame->kva, page->frame->kva, PGSIZE);
+		}
+	}
+}
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
+	hash_apply(&src->page_hash, page_copy);
+	return true;
+			
 }
 
 /* Free the resource hold by the supplemental page table 👻*/
+void page_destroy(struct hash_elem *e, void *aux UNUSED) {
+	struct page *page = hash_entry(e, struct page, hash_elem);
+	destroy(page);
+	free(page);
+}
+
 void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	hash_clear(&spt->page_hash, page_destroy);
 }
-
 
 unsigned page_hash_func(const struct hash_elem *e, void *aux UNUSED) {
     const struct page *p = hash_entry(e, struct page, hash_elem);
