@@ -42,7 +42,12 @@ struct inode {
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+#ifndef VM
 void user_memory_valid(void *r);
+#else
+struct page *user_memory_valid(void *r);
+#endif
+void check_valid_buffer(void *buffer, size_t size, bool writable);
 struct file *get_file_by_descriptor(int fd);
 struct lock syscall_lock;
 
@@ -77,86 +82,69 @@ syscall_init (void) {
 /* The main system call interface */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
-	// TODO: Your implementation goes here.
-	// printf("\n------- syscall handler -------\n");
 	uint64_t arg1 = f->R.rdi;
 	uint64_t arg2 = f->R.rsi;
 	uint64_t arg3 = f->R.rdx;
 	uint64_t arg4 = f->R.r10;
 	uint64_t arg5 = f->R.r8;
 	uint64_t arg6 = f->R.r9;
+
 	switch (f->R.rax)
 	{
 		case SYS_HALT:							//  0 운영체제 종료
 			// RPL(Requested Privilege Level) : cs의 하위 2비트
 			if ((f->cs & 0x3) != 0){}
 				// 권한 없음
-			// printf("SYS_HALT\n");
 			halt();
 		case SYS_EXIT:							//  1 프로세스 종료
-			// printf("SYS_EXIT\n");
 			exit(arg1);
 			break;
 		case SYS_FORK:							//  2 프로세스 복제
-			// printf("SYS_FORK\n");
 			// f->R.rax=fork(arg1);
 			f->R.rax = fork(arg1, f);		//(oom_update)
 			break;
 		case SYS_EXEC:							//  3 새로운 프로그램 실행
-			// printf("SYS_EXEC\n");
 			user_memory_valid((void *)arg1);
 			f->R.rax=exec(arg1);
 			break;
 		case SYS_WAIT:							//  4 자식 프로세스 대기
-			// printf("SYS_WAIT\n");
 			f->R.rax=wait(arg1);
 			break;
 		case SYS_CREATE:						//  5 파일 생성
-			// printf("SYS_CREATE\n");
 			user_memory_valid((void *)arg1);
 			f->R.rax=create(arg1,arg2);
 			break;
 		case SYS_REMOVE:						//  6 파일 삭제
-			// printf("SYS_REMOVE\n");
-			user_memory_valid((void *)arg1);
+			check_valid_buffer((void *)arg1, strlen((char *)arg1), false);
 			f->R.rax=remove(arg1);
 			break;
 		case SYS_OPEN:							//  7 파일 열기
-			// printf("SYS_OPEN\n");
 			user_memory_valid((void *)arg1);
 			f->R.rax=open(arg1);
 			break;
 		case SYS_FILESIZE:						//  8 파일 크기 조회
-			// printf("SYS_FILESIZE\n");
 			f->R.rax=filesize(arg1);
 			break;
 		case SYS_READ:							//  9 파일에서 읽기
-			// printf("SYS_READ\n");
-			user_memory_valid((void *)arg2);
+			check_valid_buffer((void *)arg2, arg3, true);
 			f->R.rax=read(arg1,arg2,arg3);
 			break;
 		case SYS_WRITE:							//  10 파일에 쓰기
-			// printf("SYS_WRITE\n");
-			user_memory_valid((void *)arg2);
+			check_valid_buffer((void *)arg2, arg3, false);
 			f->R.rax=write((int)arg1,(void *)arg2,(unsigned)arg3);
 			break;
 		case SYS_SEEK:							//  11 파일 내 위치 변경
-			// printf("SYS_SEEK\n");
 			seek(arg1,arg2);
 			break;
 		case SYS_TELL:							//  12 파일의 현재 위치 반환
-			// printf("SYS_TELL\n");
 			f->R.rax=tell(arg1);
 			break;
 		case SYS_CLOSE:							//  13 파일 닫기
-			// printf("SYS_CLOSE\n");
 			close(arg1);
 			break;
 		default:
-			// printf("default;\n");
 			break;
 	}
-	// printf("-------------------------------\n\n");
 }
 
 void halt (void){
@@ -175,6 +163,7 @@ pid_t fork (const char *thread_name, struct intr_frame *f) {	//(oom_update)
 }
 
 int exec (const char *cmd_line){
+	user_memory_valid((void *)cmd_line);
 	char *copy = palloc_get_page(PAL_ZERO);
 	if (copy == NULL) {
 		exit(-1);
@@ -191,17 +180,21 @@ int wait (pid_t pid){
 }
 
 bool create (const char *file, unsigned initial_size){
-	lock_acquire(&syscall_lock);		//minjae's
+	lock_acquire(&syscall_lock);		
 	bool create_return = filesys_create(file, initial_size);
-	lock_release(&syscall_lock);		//minjae's
+	lock_release(&syscall_lock);		
 	return create_return;
 }
 
 bool remove (const char *file){
-	return filesys_remove(file);
+	lock_acquire(&syscall_lock);
+	bool result = filesys_remove(file);
+	lock_release(&syscall_lock);
+	return result;
 }
 
 int open (const char *file) {	//(oom_update)
+	user_memory_valid((void *)file);
 	lock_acquire(&syscall_lock);
 	struct file *f = filesys_open(file);
 	if (f == NULL){
@@ -231,6 +224,11 @@ int filesize (int fd){
 }
 
 int read (int fd, void *buffer, unsigned size){
+#ifdef VM
+	check_valid_buffer((void *)buffer, (unsigned)size, true);
+#else
+	user_memory_valid((void *)buffer);
+#endif
 	if (fd == STD_IN) {                // keyboard로 직접 입력
 		int i;  // 쓰레기 값 return 방지
 		char c;
@@ -244,6 +242,8 @@ int read (int fd, void *buffer, unsigned size){
 		}
 		return i;
 	}
+
+	// buffer가 spt에 존재하는지 검사
 	
     struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL || fd == STD_OUT || fd == STD_ERR)  // 빈 파일, stdout, stderr를 읽으려고 할 경우
@@ -258,6 +258,11 @@ int read (int fd, void *buffer, unsigned size){
 }
 
 int write (int fd, const void *buffer, unsigned size){
+#ifdef VM
+	check_valid_buffer((void *)buffer, (unsigned)size, false);
+#else
+	user_memory_valid((void *)buffer);
+#endif
 	if (fd == STD_IN || fd == STD_ERR){
 		return -1;
 	}
@@ -318,7 +323,15 @@ void close (int fd){	//(oom_update)
 	file_close(f);
 }
 
-
+#ifdef VM
+struct page *user_memory_valid(void *addr){
+	struct thread *current = thread_current(); 
+	if (addr == NULL || is_kernel_vaddr(addr)){
+		exit(-1);
+	}
+	return spt_find_page(&current->spt, addr);
+}
+#else
 void user_memory_valid(void *r){
 	struct thread *current = thread_current();  
 	uint64_t *pml4 = current->pml4;
@@ -326,9 +339,17 @@ void user_memory_valid(void *r){
 		exit(-1);
 	}
 }
+#endif
 
-struct file *get_file_by_descriptor(int fd)
-{
+void check_valid_buffer(void *buffer, size_t size UNUSED, bool writable UNUSED){
+	for (size_t i = 0; i < size; i++) {
+		struct page *page = user_memory_valid(buffer + i);
+		if (!page || (writable && !(page->writable)))
+			exit(-1);
+	}
+}
+
+struct file *get_file_by_descriptor(int fd){
 	if (fd < 3 || fd > 128)
 		return NULL;
 	struct thread *t = thread_current();
