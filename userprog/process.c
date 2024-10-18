@@ -78,16 +78,12 @@ process_create_initd (const char *file_name) {
 /* A thread function that launches first user process. */
 static void
 initd (void *f_name) {
-	// printf("initd\n");
 #ifdef VM
 	supplemental_page_table_init (&thread_current ()->spt);
 #endif
-	// printf("initd1\n"); 
 	process_init ();
-	// printf("initd2\n");
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
-	// printf("initd3\n");
 	NOT_REACHED ();
 }
 

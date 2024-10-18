@@ -147,6 +147,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	}
 }
 
+
 void halt (void){
 	power_off();
 }
@@ -322,6 +323,7 @@ void close (int fd){	//(oom_update)
 
 	file_close(f);
 }
+
 
 #ifdef VM
 struct page *user_memory_valid(void *addr){
