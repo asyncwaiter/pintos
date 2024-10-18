@@ -164,6 +164,7 @@ pid_t fork (const char *thread_name, struct intr_frame *f) {	//(oom_update)
 }
 
 int exec (const char *cmd_line){
+	user_memory_valid((void *)cmd_line);
 	char *copy = palloc_get_page(PAL_ZERO);
 	if (copy == NULL) {
 		exit(-1);
@@ -187,10 +188,14 @@ bool create (const char *file, unsigned initial_size){
 }
 
 bool remove (const char *file){
-	return filesys_remove(file);
+	lock_acquire(&syscall_lock);
+	bool result = filesys_remove(file);
+	lock_release(&syscall_lock);
+	return result;
 }
 
 int open (const char *file) {	//(oom_update)
+	user_memory_valid((void *)file);
 	lock_acquire(&syscall_lock);
 	struct file *f = filesys_open(file);
 	if (f == NULL){
@@ -220,6 +225,11 @@ int filesize (int fd){
 }
 
 int read (int fd, void *buffer, unsigned size){
+#ifdef VM
+	check_valid_buffer((void *)buffer, (unsigned)size, true);
+#else
+	user_memory_valid((void *)buffer);
+#endif
 	if (fd == STD_IN) {                // keyboard로 직접 입력
 		int i;  // 쓰레기 값 return 방지
 		char c;
@@ -233,6 +243,8 @@ int read (int fd, void *buffer, unsigned size){
 		}
 		return i;
 	}
+
+	// buffer가 spt에 존재하는지 검사
 	
     struct file *file = get_file_by_descriptor(fd);
 	if (file == NULL || fd == STD_OUT || fd == STD_ERR)  // 빈 파일, stdout, stderr를 읽으려고 할 경우
@@ -247,6 +259,11 @@ int read (int fd, void *buffer, unsigned size){
 }
 
 int write (int fd, const void *buffer, unsigned size){
+#ifdef VM
+	check_valid_buffer((void *)buffer, (unsigned)size, false);
+#else
+	user_memory_valid((void *)buffer);
+#endif
 	if (fd == STD_IN || fd == STD_ERR){
 		return -1;
 	}
@@ -334,8 +351,7 @@ void check_valid_buffer(void *buffer, size_t size UNUSED, bool writable UNUSED){
 	}
 }
 
-struct file *get_file_by_descriptor(int fd)
-{
+struct file *get_file_by_descriptor(int fd){
 	if (fd < 3 || fd > 128)
 		return NULL;
 	struct thread *t = thread_current();

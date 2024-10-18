@@ -315,7 +315,6 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
 	hash_apply(&src->page_hash, page_copy);
 	return true;
-			
 }
 
 /* Free the resource hold by the supplemental page table 👻*/
