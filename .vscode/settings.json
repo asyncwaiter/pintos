@@ -25,7 +25,8 @@
     "stdint.h": "c",
     "interrupt.h": "c",
     "xutility": "c",
-    "debug.h": "c"
+    "debug.h": "c",
+    "vm.h": "c"
   },
   "C_Cpp_Runner.msvcBatchPath": "",
   "C_Cpp_Runner.cCompilerPath": "gcc",

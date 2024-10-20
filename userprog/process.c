@@ -715,24 +715,25 @@ struct aux_data {
 	size_t read_bytes;
 };
 
-static bool
-lazy_load_segment (struct page *page, struct aux_data *aux) {
-	struct file *file = aux->file;
-	off_t ofs = aux->ofs;
-	size_t read_bytes = aux->read_bytes;
-	size_t zero_bytes = PGSIZE-read_bytes;
-	void *kva = page->frame->kva;
+bool
+lazy_load_segment (struct page *page, void *aux) {
+    struct aux_data *aux_data = (struct aux_data *)aux; // aux를 aux_data로 캐스팅
+    struct file *file = aux_data->file;
+    off_t ofs = aux_data->ofs;
+    size_t read_bytes = aux_data->read_bytes;
+    size_t zero_bytes = PGSIZE - read_bytes;
+    void *kva = page->frame->kva;
 
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
 	file_seek(file, ofs); // 여기로 파일의 ofs 지정
-	if(file_read(file, kva, read_bytes) != (off_t)(read_bytes)){
-		palloc_free_page(kva);
-		return false;
-	}
-	memset(kva+read_bytes, 0, zero_bytes);
-	return true;
+	if (file_read(file, kva, read_bytes) != (off_t)(read_bytes)) {
+        palloc_free_page(kva); // 실패 시 페이지 메모리 해제
+        return false;
+    }
+	memset(kva + read_bytes, 0, zero_bytes);
+    return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address

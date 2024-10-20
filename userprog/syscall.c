@@ -50,6 +50,7 @@ struct page *user_memory_valid(void *r);
 void check_valid_buffer(void *buffer, size_t size, bool writable);
 struct file *get_file_by_descriptor(int fd);
 struct lock syscall_lock;
+void * mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 
 /* System call.
  *
@@ -141,6 +142,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_CLOSE:							//  13 파일 닫기
 			close(arg1);
+			break;
+		case SYS_MMAP:
+			f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+			break;
+		case SYS_MUNMAP:
+			munmap(f->R.rdi);
 			break;
 		default:
 			break;
@@ -342,6 +349,37 @@ void user_memory_valid(void *r){
 	}
 }
 #endif
+
+void *
+mmap (void *addr, size_t length, int writable, int fd, off_t offset){
+	if (offset * PGSIZE != 0){
+		return NULL;
+	}
+
+	if(pg_round_down(addr) != addr || is_kernel_vaddr(addr) || addr==NULL || (long long)length <= 0) {
+		return NULL;
+	}
+
+	if(spt_find_page(&thread_current()->spt, addr)) {
+		return NULL;
+	}
+
+	if(fd == 0 || fd == 1) {
+		exit(-1);
+	}
+
+	struct file * target = get_file_by_descriptor(fd);
+	if(target == NULL){
+		return NULL;
+	}
+
+	return do_mmap(addr, length, writable, target, offset);
+}
+
+void
+munmap (void *addr){
+	do_munmap(addr);
+}
 
 void check_valid_buffer(void *buffer, size_t size UNUSED, bool writable UNUSED){
 	for (size_t i = 0; i < size; i++) {
